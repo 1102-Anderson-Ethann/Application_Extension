@@ -72,3 +72,13 @@ export async function updateApplicationStatus(
   if (error) throw error;
 }
 
+export async function deleteApplication(id: string): Promise<void> {
+    
+    if(!id) throw new Error("Missing application id");
+
+    const { error } = await supabase.from("applications").delete().eq("id", id);
+
+    if(error) throw error;
+    
+}
+

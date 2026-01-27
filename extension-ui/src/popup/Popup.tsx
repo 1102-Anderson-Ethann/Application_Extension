@@ -6,6 +6,7 @@ import {
     //listApplications, 
     listApplicationsByStatus, 
     updateApplicationStatus,
+    deleteApplication,
     type ApplicationRow,
     type ApplicationStatus,
 } from "../lib/applications";
@@ -262,6 +263,26 @@ export default function Popup() {
                         Rejected
                         </button>
                     )}
+
+                    <button
+                        onClick={async () => {
+                            const ok = window.confirm(`Delete this application?\n\n${a.company} — ${a.role}\n\nThis cannot be undone.`);
+
+                            if(!ok) return;
+
+                            try{
+                                setError(null);
+                                await deleteApplication(a.id);
+
+                                await refreshApplication(selectedStatus);
+                            }catch(e: any){
+                                setError(e?.message ?? "Failed to delete application");
+                            }
+                        }}
+                        style = {{ marginLeft: "auto" }}
+                    >
+                        Delete
+                    </button>
                     </div>
 
                   <div style={{ marginTop: 6, fontSize: 12, opacity: 0.7 }}>
