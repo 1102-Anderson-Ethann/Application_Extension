@@ -19,7 +19,7 @@ export default function Popup() {
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
   const [url, setUrl] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<ApplicationStatus>("pending");
+  const [selectedStatus, setSelectedStatus] = useState<ApplicationStatus>("Pending");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCompany, setEditCompany] = useState("");
   const [editRole, setEditRole] = useState("");
@@ -35,6 +35,31 @@ export default function Popup() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  //styling
+  const styles = {
+    input: {
+        width: "100%",
+        padding: "8px",
+        borderRadius: 8,
+        border: "1px solid #ddd",
+        fontSize: 14,
+    } as React.CSSProperties,
+    button: {
+        padding: "8px 10px",
+        borderRadius: 8,
+        border: "1px solid #ddd",
+        background: "#fff",
+        cursor: "pointer",
+        fontSize: 13, 
+        
+    }as React.CSSProperties,
+    buttonActive: {
+        background: "#65676b",
+        color: "#fff",
+        borderColor: "#000000",
+    } as React.CSSProperties,
+  };
 
   async function refreshUser() {
     const { data } = await supabase.auth.getUser();
@@ -57,7 +82,7 @@ export default function Popup() {
 
         const { data } = await supabase.auth.getUser();
         if(data.user){
-            await refreshApplication("pending");
+            await refreshApplication("Pending");
         }
       } catch (e: any) {
         setError(e?.message ?? "Unknown error");
@@ -66,6 +91,8 @@ export default function Popup() {
       }
     })();
   }, []);
+
+  //Helpers
 
   async function handleLogin() {
     try {
@@ -96,7 +123,7 @@ export default function Popup() {
         setSaving(true);
         setError(null);
 
-        await createApplication({ company, role, url, status: "pending"});
+        await createApplication({ company, role, url, status: "Pending"});
 
         setCompany("");
         setRole("");
@@ -144,6 +171,46 @@ export default function Popup() {
     }
   }
 
+  async function handleAutoFillFromTab() {
+    try{
+        setError(null);
+
+        const [tab] = await chrome.tabs.query({active:true, currentWindow: true});
+        if(!tab) throw new Error("No active tab found");
+
+        //URL
+        const tabURL = tab.url ?? "";
+        if(tabURL) setUrl(tabURL);
+
+        //guess company 
+        if(tabURL) {
+            const hostname = new URL(tabURL).hostname.replace(/^www\./, "");
+            const parts = hostname.split(".");
+
+            const companyGuess = parts.length >= 2 ? parts[parts.length - 2] : hostname;
+            if(companyGuess) setCompany(capitalize(companyGuess));
+        }
+
+        //Guess role
+        const title = tab.title ?? "";
+        if(title){
+            const roleGuess = title.split(" | ")[0].split(" - ")[0].trim();
+            if(roleGuess) setRole(roleGuess);
+        }
+    }catch(e: any){
+        setError(e?.message ??  "Failed to autofill")
+    }
+    
+  }
+
+  function capitalize(s: string){
+    if(!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+
+  //UI 
+
   return (
     <div style={{ width: 360, padding: 12, fontFamily: "system-ui" }}>
       <h2 style={{ margin: "0 0 8px" }}>Application Tracker</h2>
@@ -157,7 +224,10 @@ export default function Popup() {
       )}
 
       {!loading && !email && (
-        <button onClick={handleLogin} style={{ marginTop: 8 }}>
+        <button 
+            onClick={handleLogin} 
+            className="btn"
+            >
           Sign in with Google
         </button>
       )}
@@ -167,7 +237,7 @@ export default function Popup() {
           <div style={{ marginTop: 8 }}>
             <div style={{ fontSize: 12, opacity: 0.7 }}>Signed in as</div>
             <div style={{ fontWeight: 600 }}>{email}</div>
-            <button onClick={handleLogout} style={{ marginTop: 8 }}>
+            <button onClick={handleLogout} className="btn">
               Sign out
             </button>
           </div>
@@ -177,29 +247,40 @@ export default function Popup() {
           <form onSubmit={handleAdd}>
             <div style={{ display: "grid", gap: 8 }}>
               <input
+                style={styles.input}
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
                 placeholder="Company (required)"
               />
               <input
+                style={styles.input}
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 placeholder="Role (required)"
               />
               <input
+                style={styles.input}
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="Job URL (optional)"
               />
 
-              <button type="submit" disabled={saving}>
+              <button 
+                className="btn"
+                type="button"
+                onClick={handleAutoFillFromTab}
+                >
+                    Autofill with current page
+                </button>
+
+              <button className="btn" type="submit" disabled={saving}>
                 {saving ? "Adding..." : "Add application"}
               </button>
             </div>
           </form>
 
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            {(["pending", "accepted", "rejected"] as const).map((s) => (
+            {(["Pending", "Accepted", "Rejected"] as const).map((s) => (
                 <button
                 key={s}
                 onClick={async () => {
@@ -211,11 +292,7 @@ export default function Popup() {
                     setError(e?.message ?? "Failed to load applications");
                     }
                 }}
-                style={{
-                    flex: 1,
-                    fontWeight: selectedStatus === s ? 700 : 400,
-                    opacity: selectedStatus === s ? 1 : 0.7,
-                }}
+                className="btn"
                 >
                 {s}
                 </button>
@@ -226,14 +303,14 @@ export default function Popup() {
           <hr style={{ margin: "12px 0" }} />
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <h3 style={{ margin: 0, fontSize: 14 }}>Pending</h3>
+            <h3 style={{ margin: 0, fontSize: 14 }}>{selectedStatus}</h3>
             <div style={{ fontSize: 12, opacity: 0.7 }}>{apps.length}</div>
           </div>
             <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search Applications"
-                style={{width: "100%", marginTop: 10, marginBottom: 10}}
+                style={styles.input}
             />
 
            
@@ -264,26 +341,29 @@ export default function Popup() {
                 {editingId === a.id ? (
                     <div style={{ display: "grid", gap: 6}}>
                         <input 
+                            style={styles.input}
                             value={editCompany} 
                             onChange={(e) => setEditCompany(e.target.value)} 
                             placeholder="Company"
                         />
                         <input
+                            style={styles.input}
                             value={editRole}
                             onChange={(e) => setEditRole(e.target.value)}
                             placeholder="Role"
                         />
                         <input
+                            style={styles.input}
                             value={editUrl}
                             onChange={(e) => setEditUrl(e.target.value)}
                             placeholder="Job URL (optional)"
                         />
 
                         <div style={{ display: "flex", gap: 8, marginTop: 6}}>
-                            <button type="button" onClick={cancelEditing} disabled={editingSaving}>
+                            <button className="btn" type="button" onClick={cancelEditing} disabled={editingSaving}>
                                 Cancel
                             </button>
-                            <button type="button" onClick={saveEdit} disabled={editingSaving}>
+                            <button className="btn" type="button" onClick={saveEdit} disabled={editingSaving}>
                                 {editingSaving ? "Saving..." : "Save"}
                             </button>
                         </div>
@@ -301,13 +381,14 @@ export default function Popup() {
                   ) : null}
 
                   <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-                    {a.status !== "pending" && (
+                    {a.status !== "Pending" && (
                         <button
+                        className="btn"
                         type = "button"
                         onClick={async () => {
                             try {
                             setError(null);
-                            await updateApplicationStatus(a.id, "pending");
+                            await updateApplicationStatus(a.id, "Pending");
                             await refreshApplication(selectedStatus);
                             } catch (e: any) {
                             setError(e?.message ?? "Failed to update status");
@@ -318,13 +399,14 @@ export default function Popup() {
                         </button>
                     )}
 
-                    {a.status !== "accepted" && (
+                    {a.status !== "Accepted" && (
                         <button
+                        className="btn"
                         type = "button"
                         onClick={async () => {
                             try {
                             setError(null);
-                            await updateApplicationStatus(a.id, "accepted");
+                            await updateApplicationStatus(a.id, "Accepted");
                             await refreshApplication(selectedStatus);
                             } catch (e: any) {
                             setError(e?.message ?? "Failed to update status");
@@ -335,13 +417,14 @@ export default function Popup() {
                         </button>
                     )}
 
-                    {a.status !== "rejected" && (
+                    {a.status !== "Rejected" && (
                         <button
+                        className="btn"
                         type= "button"
                         onClick={async () => {
                             try {
                             setError(null);
-                            await updateApplicationStatus(a.id, "rejected");
+                            await updateApplicationStatus(a.id, "Rejected");
                             await refreshApplication(selectedStatus);
                             } catch (e: any) {
                             setError(e?.message ?? "Failed to update status");
@@ -352,7 +435,7 @@ export default function Popup() {
                         </button>
                     )}
 
-                    <button type="button" onClick={() => startEditing(a)}>
+                    <button className="btn" type="button" onClick={() => startEditing(a)}>
                         Edit
                     </button>
 
@@ -372,7 +455,7 @@ export default function Popup() {
                                 setError(e?.message ?? "Failed to delete application");
                             }
                         }}
-                        style = {{ marginLeft: "auto" }}
+                        className="btn"
                     >
                         Delete
                     </button>

@@ -5,8 +5,16 @@
   "action": {
     "default_popup": "index.html"
   },
-  "permissions": ["storage", "identity"],
+  "permissions": ["storage", "identity", "tabs"],
   "background": {
     "service_worker": "background.js"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+U"
+      },
+      "desciption": "Open Application Tracker Extension"
+    }
   }
 }

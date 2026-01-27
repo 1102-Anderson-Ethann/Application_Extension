@@ -1,6 +1,6 @@
 import { supabase } from "./supabaseClient";
 
-export type ApplicationStatus = "pending" | "accepted" | "rejected";
+export type ApplicationStatus = "Pending" | "Accepted" | "Rejected";
 
 export type ApplicationRow = {
   id: string;
