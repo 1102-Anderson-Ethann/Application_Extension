@@ -32,3 +32,6 @@ Key design decisions:
 - Frontend: Reacts + TypeScript (using Vite)
 - Backend: Supabase (PostgreSQL, Auth, and RLS)
 - Platform: Chrome Extension (Mainfest V3)
+
+***NOTE***
+Please cd extension-ui, before running npm run build
