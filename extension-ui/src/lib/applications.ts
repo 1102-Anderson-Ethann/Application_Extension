@@ -23,6 +23,20 @@ export async function listApplications() {
   return data as ApplicationRow[];
 }
 
+export async function listApplicationsByStatus(
+  status: ApplicationStatus
+): Promise<ApplicationRow[]> {
+  const { data, error } = await supabase
+    .from("applications")
+    .select("*")
+    .eq("status", status)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as ApplicationRow[];
+}
+
+
 export async function createApplication(input: {
   company: string;
   role: string;
@@ -45,3 +59,16 @@ export async function createApplication(input: {
 
   if (error) throw error;
 }
+
+export async function updateApplicationStatus(
+  id: string,
+  status: ApplicationStatus
+): Promise<void> {
+  const { error } = await supabase
+    .from("applications")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+

@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { loadSessionFromStorage, loginWithGoogle, logout } from "../lib/auth";
-import { createApplication, listApplications, type ApplicationRow } from "../lib/applications";
+import { 
+    createApplication, 
+    //listApplications, 
+    listApplicationsByStatus, 
+    updateApplicationStatus,
+    type ApplicationRow,
+    type ApplicationStatus,
+} from "../lib/applications";
 
 export default function Popup() {
   const [email, setEmail] = useState<string | null>(null);
@@ -10,6 +17,7 @@ export default function Popup() {
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
   const [url, setUrl] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<ApplicationStatus>("pending");
 
   //Data State
   const [apps, setApps] = useState<ApplicationRow[]>([]);
@@ -24,8 +32,8 @@ export default function Popup() {
     setEmail(data.user?.email ?? null);
   }
 
-  async function refreshApplication(){
-    const rows = await listApplications();
+  async function refreshApplication(status = selectedStatus){
+    const rows = await listApplicationsByStatus(status);
     setApps(rows);
   }
 
@@ -40,7 +48,7 @@ export default function Popup() {
 
         const { data } = await supabase.auth.getUser();
         if(data.user){
-            await refreshApplication();
+            await refreshApplication("pending");
         }
       } catch (e: any) {
         setError(e?.message ?? "Unknown error");
@@ -149,6 +157,31 @@ export default function Popup() {
             </div>
           </form>
 
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            {(["pending", "accepted", "rejected"] as const).map((s) => (
+                <button
+                key={s}
+                onClick={async () => {
+                    setSelectedStatus(s);
+                    try {
+                    setError(null);
+                    await refreshApplication(s);
+                    } catch (e: any) {
+                    setError(e?.message ?? "Failed to load applications");
+                    }
+                }}
+                style={{
+                    flex: 1,
+                    fontWeight: selectedStatus === s ? 700 : 400,
+                    opacity: selectedStatus === s ? 1 : 0.7,
+                }}
+                >
+                {s}
+                </button>
+            ))}
+            </div>
+
+
           <hr style={{ margin: "12px 0" }} />
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -160,7 +193,7 @@ export default function Popup() {
             {apps.length === 0 ? (
               <div style={{ fontSize: 12, opacity: 0.8 }}>
                 No applications yet. Add your first one 👆
-              </div>
+            </div>
             ) : (
               apps.map((a) => (
                 <div
@@ -180,10 +213,63 @@ export default function Popup() {
                       </a>
                     </div>
                   ) : null}
+
+                  <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                    {a.status !== "pending" && (
+                        <button
+                        onClick={async () => {
+                            try {
+                            setError(null);
+                            await updateApplicationStatus(a.id, "pending");
+                            await refreshApplication(selectedStatus);
+                            } catch (e: any) {
+                            setError(e?.message ?? "Failed to update status");
+                            }
+                        }}
+                        >
+                        Pending
+                        </button>
+                    )}
+
+                    {a.status !== "accepted" && (
+                        <button
+                        onClick={async () => {
+                            try {
+                            setError(null);
+                            await updateApplicationStatus(a.id, "accepted");
+                            await refreshApplication(selectedStatus);
+                            } catch (e: any) {
+                            setError(e?.message ?? "Failed to update status");
+                            }
+                        }}
+                        >
+                        Accepted
+                        </button>
+                    )}
+
+                    {a.status !== "rejected" && (
+                        <button
+                        onClick={async () => {
+                            try {
+                            setError(null);
+                            await updateApplicationStatus(a.id, "rejected");
+                            await refreshApplication(selectedStatus);
+                            } catch (e: any) {
+                            setError(e?.message ?? "Failed to update status");
+                            }
+                        }}
+                        >
+                        Rejected
+                        </button>
+                    )}
+                    </div>
+
                   <div style={{ marginTop: 6, fontSize: 12, opacity: 0.7 }}>
                     status: {a.status}
                   </div>
                 </div>
+
+                
               ))
             )}
           </div>
