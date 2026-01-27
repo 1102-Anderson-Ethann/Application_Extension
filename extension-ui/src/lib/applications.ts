@@ -82,3 +82,16 @@ export async function deleteApplication(id: string): Promise<void> {
     
 }
 
+export async function updateApplication(id: string, updates: { company: string; role: string; url: string | null}): Promise<void> {
+    if(!id) throw new Error("Missing app. id");
+
+    const company = updates.company.trim();
+    const role = updates.role.trim();
+
+    if(!company) throw new Error("Company required");
+    if(!role) throw new Error("Role is required");
+
+    const { error } = await supabase.from("applications").update({ company, role, url: updates.url?.trim() ? updates.url.trim() : null}).eq("id", id);
+
+    if(error) throw error;
+}

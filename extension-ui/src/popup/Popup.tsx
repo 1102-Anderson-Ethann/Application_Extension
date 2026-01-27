@@ -7,6 +7,7 @@ import {
     listApplicationsByStatus, 
     updateApplicationStatus,
     deleteApplication,
+    updateApplication,
     type ApplicationRow,
     type ApplicationStatus,
 } from "../lib/applications";
@@ -19,6 +20,13 @@ export default function Popup() {
   const [role, setRole] = useState("");
   const [url, setUrl] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<ApplicationStatus>("pending");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCompany, setEditCompany] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [editingSaving, setEditingSaving] = useState(false);
+  const [search, setSearch] = useState("");
+
 
   //Data State
   const [apps, setApps] = useState<ApplicationRow[]>([]);
@@ -102,6 +110,38 @@ export default function Popup() {
     }
   } 
     
+  }
+
+  function startEditing(app: ApplicationRow){
+    setEditingId(app.id);
+    setEditCompany(app.company);
+    setEditRole(app.role);
+    setEditUrl(app.url ?? "");
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+    setEditCompany("");
+    setEditRole("");
+    setEditUrl("");
+  }
+
+  async function saveEdit() {
+    if(!editingId) return;
+
+    try{
+        setEditingSaving(true);
+        setError(null);
+
+        await updateApplication(editingId, {company: editCompany, role: editRole, url: editUrl.trim() ? editUrl.trim() : null});
+
+        cancelEditing();
+        await refreshApplication(selectedStatus);
+    }catch(e: any){
+        setError(e?.message ?? "Failed to save chnages");
+    }finally{
+        setEditingSaving(false);
+    }
   }
 
   return (
@@ -189,14 +229,30 @@ export default function Popup() {
             <h3 style={{ margin: 0, fontSize: 14 }}>Pending</h3>
             <div style={{ fontSize: 12, opacity: 0.7 }}>{apps.length}</div>
           </div>
+            <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search Applications"
+                style={{width: "100%", marginTop: 10, marginBottom: 10}}
+            />
 
-          <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
+           
+            <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
             {apps.length === 0 ? (
               <div style={{ fontSize: 12, opacity: 0.8 }}>
                 No applications yet. Add your first one 👆
             </div>
+            
             ) : (
-              apps.map((a) => (
+        
+              apps.filter((a) => {
+                const q = search.trim().toLowerCase();
+                if(!q) return true;
+
+                const text = `${a.company} ${a.role} ${a.url ?? ""}`.toLowerCase();
+                return text.includes(q);
+              }).map((a) => (
+            
                 <div
                   key={a.id}
                   style={{
@@ -205,6 +261,35 @@ export default function Popup() {
                     padding: 8,
                   }}
                 >
+                {editingId === a.id ? (
+                    <div style={{ display: "grid", gap: 6}}>
+                        <input 
+                            value={editCompany} 
+                            onChange={(e) => setEditCompany(e.target.value)} 
+                            placeholder="Company"
+                        />
+                        <input
+                            value={editRole}
+                            onChange={(e) => setEditRole(e.target.value)}
+                            placeholder="Role"
+                        />
+                        <input
+                            value={editUrl}
+                            onChange={(e) => setEditUrl(e.target.value)}
+                            placeholder="Job URL (optional)"
+                        />
+
+                        <div style={{ display: "flex", gap: 8, marginTop: 6}}>
+                            <button type="button" onClick={cancelEditing} disabled={editingSaving}>
+                                Cancel
+                            </button>
+                            <button type="button" onClick={saveEdit} disabled={editingSaving}>
+                                {editingSaving ? "Saving..." : "Save"}
+                            </button>
+                        </div>
+                    </div>
+                ) : ( 
+                <>
                   <div style={{ fontWeight: 600 }}>{a.company}</div>
                   <div style={{ fontSize: 12, opacity: 0.8 }}>{a.role}</div>
                   {a.url ? (
@@ -218,6 +303,7 @@ export default function Popup() {
                   <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
                     {a.status !== "pending" && (
                         <button
+                        type = "button"
                         onClick={async () => {
                             try {
                             setError(null);
@@ -234,6 +320,7 @@ export default function Popup() {
 
                     {a.status !== "accepted" && (
                         <button
+                        type = "button"
                         onClick={async () => {
                             try {
                             setError(null);
@@ -250,6 +337,7 @@ export default function Popup() {
 
                     {a.status !== "rejected" && (
                         <button
+                        type= "button"
                         onClick={async () => {
                             try {
                             setError(null);
@@ -264,7 +352,12 @@ export default function Popup() {
                         </button>
                     )}
 
+                    <button type="button" onClick={() => startEditing(a)}>
+                        Edit
+                    </button>
+
                     <button
+                        type="button"
                         onClick={async () => {
                             const ok = window.confirm(`Delete this application?\n\n${a.company} — ${a.role}\n\nThis cannot be undone.`);
 
@@ -288,6 +381,9 @@ export default function Popup() {
                   <div style={{ marginTop: 6, fontSize: 12, opacity: 0.7 }}>
                     status: {a.status}
                   </div>
+                    </>
+                )}
+
                 </div>
 
                 
